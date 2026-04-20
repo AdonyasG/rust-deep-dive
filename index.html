@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🦀 Rust Deep Dive — For Go Engineers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --rust: #CE4A0A;
+    --rust-light: #E8621F;
+    --rust-dim: #7A2D07;
+    --rust-glow: rgba(206, 74, 10, 0.15);
+    --go: #00ACD7;
+    --go-dim: rgba(0, 172, 215, 0.15);
+    --bg: #0D0D0D;
+    --bg2: #141414;
+    --bg3: #1A1A1A;
+    --bg4: #212121;
+    --border: rgba(255,255,255,0.07);
+    --border-bright: rgba(255,255,255,0.15);
+    --text: #E8E2D9;
+    --text-dim: #7A7570;
+    --text-mid: #B0A99F;
+    --green: #4EC994;
+    --yellow: #E8C547;
+    --red: #E84747;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --font-display: 'DM Serif Display', serif;
+    --font-ui: 'Space Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+
+  /* ─── HERO ─────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    padding: 80px 40px 60px;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 70% 60% at 10% 50%, rgba(206,74,10,0.08) 0%, transparent 70%),
+                radial-gradient(ellipse 40% 40% at 90% 20%, rgba(0,172,215,0.05) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .hero-grid {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 40px;
+    align-items: start;
+  }
+
+  .hero-tag {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--rust);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hero-tag::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 1px;
+    background: var(--rust);
+  }
+
+  .hero h1 {
+    font-family: var(--font-display);
+    font-size: clamp(38px, 6vw, 72px);
+    line-height: 1.05;
+    color: var(--text);
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
+  }
+
+  .hero h1 span {
+    color: var(--rust);
+    font-style: italic;
+  }
+
+  .hero-sub {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 32px;
+    letter-spacing: 0.05em;
+  }
+
+  .hero-stats {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat-val {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    font-family: var(--font-mono);
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Progress ring */
+  .progress-ring-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .progress-ring-wrap svg {
+    transform: rotate(-90deg);
+  }
+
+  .ring-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .ring-pct {
+    font-size: 11px;
+    color: var(--rust);
+    font-weight: 700;
+    margin-top: -4px;
+  }
+
+  /* ─── LAYOUT ─────────────────────────────────────────── */
+  .layout {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px;
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+
+  /* ─── SIDEBAR ─────────────────────────────────────────── */
+  .sidebar {
+    position: sticky;
+    top: 24px;
+  }
+
+  .sidebar-section {
+    margin-bottom: 28px;
+  }
+
+  .sidebar-title {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+    color: var(--text-mid);
+    font-size: 11px;
+    position: relative;
+    border: 1px solid transparent;
+  }
+
+  .nav-item:hover {
+    color: var(--text);
+    background: var(--bg3);
+    border-color: var(--border);
+  }
+
+  .nav-item.active {
+    color: var(--rust);
+    background: var(--rust-glow);
+    border-color: var(--rust-dim);
+  }
+
+  .nav-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border-bright);
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+
+  .nav-item.done .nav-dot { background: var(--green); }
+  .nav-item.active .nav-dot { background: var(--rust); box-shadow: 0 0 6px var(--rust); }
+
+  .nav-progress {
+    margin-left: auto;
+    font-size: 9px;
+    color: var(--text-dim);
+  }
+
+  /* ─── MAIN CONTENT ─────────────────────────────────────────── */
+  .main {
+    min-width: 0;
+  }
+
+  /* Phase sections */
+  .phase {
+    margin-bottom: 48px;
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+
+  .phase.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .phase-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: var(--rust-glow);
+    border: 1px solid var(--rust-dim);
+    border-radius: 2px;
+    font-size: 10px;
+    color: var(--rust);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .phase-badge.go-badge {
+    background: var(--go-dim);
+    border-color: rgba(0,172,215,0.3);
+    color: var(--go);
+  }
+
+  .phase-title {
+    font-family: var(--font-display);
+    font-size: 28px;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .phase-meta {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-align: right;
+    line-height: 1.8;
+  }
+
+  /* Blocks */
+  .block {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 24px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .block:hover {
+    border-color: var(--border-bright);
+  }
+
+  .block-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    background: var(--bg3);
+    transition: background 0.15s;
+  }
+
+  .block-header:hover {
+    background: var(--bg4);
+  }
+
+  .block-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .block-title {
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 700;
+  }
+
+  .block-sub {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-left: 4px;
+    font-weight: 400;
+  }
+
+  .block-progress-bar {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .bar-track {
+    width: 80px;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: var(--rust);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+
+  .bar-pct {
+    font-size: 10px;
+    color: var(--text-dim);
+    width: 28px;
+    text-align: right;
+  }
+
+  .block-chevron {
+    color: var(--text-dim);
+    font-size: 12px;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .block.open .block-chevron { transform: rotate(180deg); }
+
+  .block-body {
+    display: none;
+    padding: 18px;
+  }
+
+  .block.open .block-body { display: block; }
+
+  /* Task list */
+  .task-group {
+    margin-bottom: 20px;
+  }
+
+  .task-group-label {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--rust);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .task-group-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--rust-dim);
+    opacity: 0.4;
+  }
+
+  .task-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.12s;
+    border: 1px solid transparent;
+  }
+
+  .task-item:hover {
+    background: var(--bg3);
+    border-color: var(--border);
+  }
+
+  .task-item.checked {
+    opacity: 0.5;
+  }
+
+  .task-item.checked .task-text {
+    text-decoration: line-through;
+    color: var(--text-dim);
+  }
+
+  .checkbox {
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--border-bright);
+    border-radius: 2px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    font-size: 9px;
+    color: transparent;
+    background: transparent;
+  }
+
+  .task-item.checked .checkbox {
+    background: var(--green);
+    border-color: var(--green);
+    color: #000;
+  }
+
+  .task-text {
+    font-size: 12px;
+    color: var(--text-mid);
+    line-height: 1.5;
+    transition: color 0.15s;
+  }
+
+  /* Code blocks */
+  .code-block {
+    background: #0A0A0A;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--rust-dim);
+    border-radius: 3px;
+    padding: 14px 16px;
+    margin: 14px 0;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    line-height: 1.7;
+    overflow-x: auto;
+    position: relative;
+  }
+
+  .code-block .lang-badge {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .code-block .kw { color: #C792EA; }
+  .code-block .fn-name { color: #82AAFF; }
+  .code-block .str { color: #C3E88D; }
+  .code-block .comment { color: var(--text-dim); font-style: italic; }
+  .code-block .type { color: #FFCB6B; }
+  .code-block .num { color: #F78C6C; }
+  .code-block .err { color: var(--red); }
+  .code-block .ok { color: var(--green); }
+  .code-block .punct { color: #89DDFF; }
+
+  /* Go anchor callouts */
+  .go-anchor {
+    display: flex;
+    gap: 12px;
+    background: var(--go-dim);
+    border: 1px solid rgba(0,172,215,0.2);
+    border-radius: 3px;
+    padding: 12px 14px;
+    margin: 12px 0;
+    font-size: 11px;
+    color: var(--text-mid);
+    line-height: 1.6;
+  }
+
+  .go-anchor .go-icon {
+    color: var(--go);
+    font-size: 13px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* Warning */
+  .warn-box {
+    display: flex;
+    gap: 12px;
+    background: rgba(232,197,71,0.06);
+    border: 1px solid rgba(232,197,71,0.2);
+    border-radius: 3px;
+    padding: 12px 14px;
+    margin: 12px 0;
+    font-size: 11px;
+    color: #C9AA3A;
+    line-height: 1.6;
+  }
+
+  /* Exit checklist special style */
+  .exit-checklist {
+    background: rgba(78,201,148,0.04);
+    border: 1px solid rgba(78,201,148,0.2);
+    border-radius: 4px;
+    padding: 16px 18px;
+    margin-top: 16px;
+  }
+
+  .exit-checklist-title {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 12px;
+  }
+
+  /* Project cards */
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+  }
+
+  .project-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .project-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--rust);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.2s;
+  }
+
+  .project-card:hover {
+    border-color: var(--border-bright);
+    background: var(--bg4);
+  }
+
+  .project-card:hover::before {
+    transform: scaleX(1);
+  }
+
+  .project-card.selected {
+    border-color: var(--rust-dim);
+    background: var(--rust-glow);
+  }
+
+  .project-card.selected::before {
+    transform: scaleX(1);
+  }
+
+  .project-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .project-why {
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  /* Timeline */
+  .timeline {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    margin: 20px 0;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .timeline-phase {
+    padding: 14px 16px;
+    border-right: 1px solid var(--border);
+    background: var(--bg2);
+    transition: background 0.15s;
+  }
+
+  .timeline-phase:last-child { border-right: none; }
+
+  .timeline-phase:hover { background: var(--bg3); }
+
+  .timeline-phase-name {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-mid);
+    margin-bottom: 4px;
+  }
+
+  .timeline-sessions {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--rust);
+    font-family: var(--font-mono);
+    margin-bottom: 4px;
+  }
+
+  .timeline-note {
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--bg3);
+    border: 1px solid var(--border-bright);
+    border-radius: 4px;
+    padding: 12px 18px;
+    font-size: 12px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 100;
+    pointer-events: none;
+    max-width: 300px;
+  }
+
+  .toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .toast .t-icon { font-size: 16px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+
+  /* Section anchors */
+  section[id] { scroll-margin-top: 24px; }
+
+  /* Responsive */
+  @media (max-width: 720px) {
+    .layout { grid-template-columns: 1fr; padding: 20px; }
+    .sidebar { position: static; display: flex; gap: 8px; flex-wrap: wrap; }
+    .hero { padding: 40px 20px 40px; }
+    .hero-grid { grid-template-columns: 1fr; }
+    .timeline { grid-template-columns: repeat(2,1fr); }
+    .progress-ring-wrap { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-grid">
+    <div>
+      <div class="hero-tag">Learning Plan v1.0</div>
+      <h1>🦀 Rust<br><span>Deep Dive</span></h1>
+      <div class="hero-sub">A 2-Phase Learning Plan for Go Backend Engineers</div>
+      <div class="hero-stats">
+        <div class="stat">
+          <span class="stat-val" id="total-tasks">—</span>
+          <span class="stat-label">Total Tasks</span>
+        </div>
+        <div class="stat">
+          <span class="stat-val" id="done-tasks">0</span>
+          <span class="stat-label">Completed</span>
+        </div>
+        <div class="stat">
+          <span class="stat-val" id="sessions-stat">13–19</span>
+          <span class="stat-label">Sessions</span>
+        </div>
+        <div class="stat">
+          <span class="stat-val">4–6</span>
+          <span class="stat-label">Weeks</span>
+        </div>
+      </div>
+    </div>
+    <div class="progress-ring-wrap">
+      <svg width="100" height="100" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="6"/>
+        <circle id="ring-circle" cx="50" cy="50" r="42" fill="none" stroke="#CE4A0A" stroke-width="6"
+          stroke-linecap="round" stroke-dasharray="263.9" stroke-dashoffset="263.9"
+          style="transition: stroke-dashoffset 0.5s ease"/>
+        <text x="50" y="54" text-anchor="middle" fill="#E8E2D9" font-family="IBM Plex Mono,monospace"
+          font-size="14" font-weight="700" transform="rotate(90 50 50)" id="ring-text">0%</text>
+      </svg>
+      <div class="ring-label">overall</div>
+      <div class="ring-pct">progress</div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">Navigation</div>
+      <a class="nav-item" href="#timeline" onclick="scrollTo('#timeline')">
+        <span class="nav-dot"></span> Overview
+      </a>
+      <a class="nav-item" href="#phase-a" onclick="scrollTo('#phase-a')">
+        <span class="nav-dot"></span> Phase A
+        <span class="nav-progress" id="nav-phase-a">0%</span>
+      </a>
+      <a class="nav-item" href="#block1" onclick="scrollTo('#block1')">
+        <span class="nav-dot"></span> Block 1 — Syntax
+        <span class="nav-progress" id="nav-block1">0%</span>
+      </a>
+      <a class="nav-item" href="#block2" onclick="scrollTo('#block2')">
+        <span class="nav-dot"></span> Block 2 — Ownership
+        <span class="nav-progress" id="nav-block2">0%</span>
+      </a>
+      <a class="nav-item" href="#phase-b" onclick="scrollTo('#phase-b')">
+        <span class="nav-dot"></span> Phase B
+        <span class="nav-progress" id="nav-phase-b">0%</span>
+      </a>
+      <a class="nav-item" href="#project" onclick="scrollTo('#project')">
+        <span class="nav-dot"></span> Build Something
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-title">Quick Stats</div>
+      <div style="font-size:10px; color:var(--text-dim); line-height:2">
+        <div>Sessions/week: <span style="color:var(--text)">3</span></div>
+        <div>Block 1: <span style="color:var(--text)">1–3 sessions</span></div>
+        <div>Block 2: <span style="color:var(--rust)">6–8 sessions ⚠️</span></div>
+        <div>Phase B: <span style="color:var(--text)">4–7 sessions</span></div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-title">Actions</div>
+      <button onclick="resetAll()" style="background:none;border:1px solid var(--border);color:var(--text-dim);padding:6px 12px;border-radius:3px;cursor:pointer;font-family:var(--font-ui);font-size:10px;width:100%;text-align:left;transition:all 0.15s" onmouseover="this.style.borderColor='var(--border-bright)';this.style.color='var(--text)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">↺ Reset progress</button>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- TIMELINE -->
+    <section id="timeline">
+      <div class="phase visible" style="margin-bottom:32px">
+        <div class="phase-header">
+          <div class="phase-badge">Timeline</div>
+          <div class="phase-title">Realistic Schedule</div>
+        </div>
+        <p style="font-size:12px;color:var(--text-mid);margin-bottom:16px;line-height:1.8">
+          At 3 flexible sessions per week, this is a 4–6 week plan at a sustainable pace.
+          Sessions don't need to be consecutive or regular — just consistent.
+        </p>
+        <div class="timeline">
+          <div class="timeline-phase">
+            <div class="timeline-phase-name">Block 1 — Syntax</div>
+            <div class="timeline-sessions">1–3</div>
+            <div class="timeline-note">Quick wins, familiar ground</div>
+          </div>
+          <div class="timeline-phase">
+            <div class="timeline-phase-name">Block 2 — Ownership</div>
+            <div class="timeline-sessions">4–6</div>
+            <div class="timeline-note">Slow down here intentionally ⚠️</div>
+          </div>
+          <div class="timeline-phase">
+            <div class="timeline-phase-name">Phase B — Modeling</div>
+            <div class="timeline-sessions">2–4</div>
+            <div class="timeline-note">Go patterns resurface</div>
+          </div>
+          <div class="timeline-phase">
+            <div class="timeline-phase-name">Mini Project</div>
+            <div class="timeline-sessions">2–4</div>
+            <div class="timeline-note">Cements everything permanently</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PHASE A -->
+    <section id="phase-a">
+      <div class="phase" data-phase="a">
+        <div class="phase-header">
+          <div class="phase-badge">Phase A — 2 Weeks</div>
+          <div class="phase-title">Survive the Compiler</div>
+          <div class="phase-meta">Foundations + Ownership<br>+ Borrowing</div>
+        </div>
+        <div class="warn-box">
+          <span>🎯</span>
+          <span>This is the phase that separates people who learn Rust from people who give up on it. Everything here is unfamiliar territory compared to Go. <strong>Slow is fast.</strong></span>
+        </div>
+
+        <!-- Block 1 -->
+        <section id="block1">
+        <div class="block open" id="block-block1">
+          <div class="block-header" onclick="toggleBlock('block1')">
+            <span class="block-icon">📦</span>
+            <span class="block-title">Block 1 — Get Running + Core Syntax <span class="block-sub">Sessions 1–3</span></span>
+            <div class="block-progress-bar">
+              <div class="bar-track"><div class="bar-fill" id="bar-block1" style="width:0%"></div></div>
+              <span class="bar-pct" id="pct-block1">0%</span>
+            </div>
+            <span class="block-chevron">▾</span>
+          </div>
+          <div class="block-body">
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Setup & First Feel</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">Install <code>rustup</code> and <code>cargo</code></span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">Run <code>cargo new</code>, <code>cargo run</code>, <code>cargo build</code></span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">Understand project structure: <code>src/main.rs</code>, <code>Cargo.toml</code></span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">Write hello world, then <em>break it intentionally</em> — read the error output carefully</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">Notice how Rust errors tell you exactly what's wrong and often suggest the fix</span>
+              </div>
+              <div class="go-anchor"><span class="go-icon">🐹</span><span>Like <code>go build</code> but the compiler is significantly more talkative — that's a feature, not noise</span></div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Variables & Types</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text"><code>let</code> vs <code>let mut</code> — immutable by default, unlike Go's <code>:=</code></span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">Scalar types: <code>i32</code>, <code>u64</code>, <code>f64</code>, <code>bool</code>, <code>char</code></span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">Shadowing — re-declaring <code>let x</code> in the same scope (no Go equivalent)</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">Type inference vs explicit annotation</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">No implicit type conversion — even <code>i32</code> to <code>i64</code> must be explicit</span>
+              </div>
+              <div class="go-anchor"><span class="go-icon">🐹</span><span>Go lets you do <code>var x int = 5</code> or <code>x := 5</code> — Rust's <code>let x: i32 = 5</code> is the same idea, just stricter about mutation</span></div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Control Flow</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text"><code>if</code>/<code>else</code> — they're expressions that can return values</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text"><code>loop</code> — infinite loop, use <code>break value</code> to return something out of it</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text"><code>while</code> — same as Go</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text"><code>for item in collection</code> — like Go's <code>for _, v := range slice</code></span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">Write <strong>FizzBuzz</strong> in Rust before moving on</span>
+              </div>
+              <div class="code-block">
+<span class="comment">// if as expression — no Go equivalent</span>
+<span class="kw">let</span> label = <span class="kw">if</span> score > <span class="num">90</span> <span class="punct">{</span> <span class="str">"high"</span> <span class="punct">}</span> <span class="kw">else</span> <span class="punct">{</span> <span class="str">"low"</span> <span class="punct">}</span>;
+                <div class="lang-badge">rust</div>
+              </div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Functions</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">Define with typed params and explicit return types</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">Implicit return — last expression without semicolon is returned automatically</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">Explicit <code>return</code> also works, mostly used for early returns</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">Pass values into functions and observe what happens to the originals</span>
+              </div>
+              <div class="code-block">
+<span class="kw">fn</span> <span class="fn-name">add</span>(a: <span class="type">i32</span>, b: <span class="type">i32</span>) -> <span class="type">i32</span> <span class="punct">{</span>
+    a + b <span class="comment">// no semicolon = return value</span>
+<span class="punct">}</span>
+                <div class="lang-badge">rust</div>
+              </div>
+              <div class="go-anchor"><span class="go-icon">🐹</span><span>In Go you always write <code>return x</code>. In Rust the last line IS the return — takes a session to stop reaching for <code>return</code></span></div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Strings — First Real Gotcha</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text"><code>String</code> = owned, heap-allocated, mutable — you own this data</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text"><code>&str</code> = a borrowed slice, a window into existing string data</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">Convert between them: <code>.to_string()</code>, <code>String::from()</code>, <code>.as_str()</code></span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block1">
+                <div class="checkbox">✓</div><span class="task-text">String concatenation works differently — can't just <code>+</code> two Strings freely</span>
+              </div>
+              <div class="code-block">
+<span class="kw">let</span> owned: <span class="type">String</span> = <span class="type">String</span>::<span class="fn-name">from</span>(<span class="str">"hello"</span>);
+<span class="kw">let</span> borrowed: <span class="type">&str</span> = <span class="str">"world"</span>; <span class="comment">// lives in binary</span>
+<span class="kw">let</span> also_borrowed: <span class="type">&str</span> = &owned; <span class="comment">// slice of String above</span>
+                <div class="lang-badge">rust</div>
+              </div>
+              <div class="go-anchor"><span class="go-icon">🐹</span><span>Go's <code>string</code> is immutable and passed by value always. Rust forces you to decide — do you OWN this string or just LOOK at it? That question is the seed of all of Phase A.</span></div>
+            </div>
+
+          </div><!-- /block-body -->
+        </div>
+        </section>
+
+        <!-- Block 2 -->
+        <section id="block2">
+        <div class="block" id="block-block2">
+          <div class="block-header" onclick="toggleBlock('block2')">
+            <span class="block-icon">💀</span>
+            <span class="block-title">Block 2 — Ownership & Borrowing <span class="block-sub">The Actual Wall</span></span>
+            <div class="block-progress-bar">
+              <div class="bar-track"><div class="bar-fill" id="bar-block2" style="width:0%"></div></div>
+              <span class="bar-pct" id="pct-block2">0%</span>
+            </div>
+            <span class="block-chevron">▾</span>
+          </div>
+          <div class="block-body">
+
+            <div class="warn-box">
+              <span>⚠️</span>
+              <span>Spend the majority of your Phase A time here. If Block 1 took 3 sessions, Block 2 should take <strong>6–8</strong>. Do not rush.</span>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Ownership Rules — Learn These Cold</div>
+              <p style="font-size:11px;color:var(--text-dim);margin-bottom:12px">There are only 3 rules. Everything else is a consequence of them:</p>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text"><strong>Rule 1:</strong> Every value has exactly one owner</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text"><strong>Rule 2:</strong> When the owner goes out of scope, the value is dropped (freed)</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text"><strong>Rule 3:</strong> There can only be one owner at a time</span>
+              </div>
+              <div class="code-block">
+<span class="kw">let</span> s1 = <span class="type">String</span>::<span class="fn-name">from</span>(<span class="str">"hello"</span>);
+<span class="kw">let</span> s2 = s1; <span class="comment">// s1 is MOVED into s2 — s1 no longer exists</span>
+<span class="fn-name">println!</span>(<span class="str">"{}"</span>, s1); <span class="err">// 💥 compiler error — s1 was moved</span>
+                <div class="lang-badge">rust</div>
+              </div>
+              <div class="go-anchor"><span class="go-icon">🐹</span><span>In Go this works fine because the GC tracks references. In Rust there's no GC — the compiler enforces single ownership so it knows exactly when to free memory</span></div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Copy vs Move</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Primitives (<code>i32</code>, <code>bool</code>, <code>f64</code>, <code>char</code>) are <em>copied</em> — assignment duplicates them</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Heap types (<code>String</code>, <code>Vec</code>) are <em>moved</em> — assignment transfers ownership</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Understand why <code>let s2 = s1</code> kills <code>s1</code> but <code>let b = a</code> where <code>a: i32</code> doesn't</span>
+              </div>
+              <div class="code-block">
+<span class="kw">let</span> x: <span class="type">i32</span> = <span class="num">5</span>;
+<span class="kw">let</span> y = x; <span class="comment">// copied — x still valid</span>
+<span class="fn-name">println!</span>(<span class="str">"{}"</span>, x); <span class="ok">// ✅ fine</span>
+
+<span class="kw">let</span> s1 = <span class="type">String</span>::<span class="fn-name">from</span>(<span class="str">"hi"</span>);
+<span class="kw">let</span> s2 = s1; <span class="comment">// moved — s1 gone</span>
+<span class="fn-name">println!</span>(<span class="str">"{}"</span>, s1); <span class="err">// 💥 error</span>
+                <div class="lang-badge">rust</div>
+              </div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 References & Borrowing</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Use <code>&</code> to borrow a value without taking ownership</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">The original owner keeps ownership — you just get a read-only view</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Multiple immutable references are fine simultaneously</span>
+              </div>
+              <div class="code-block">
+<span class="kw">fn</span> <span class="fn-name">print_length</span>(s: &<span class="type">String</span>) <span class="punct">{</span>
+    <span class="fn-name">println!</span>(<span class="str">"{}"</span>, s.<span class="fn-name">len</span>());
+<span class="punct">}</span>
+<span class="kw">let</span> s = <span class="type">String</span>::<span class="fn-name">from</span>(<span class="str">"hello"</span>);
+<span class="fn-name">print_length</span>(&s); <span class="comment">// borrow s</span>
+<span class="fn-name">println!</span>(<span class="str">"{}"</span>, s); <span class="ok">// s still valid — we only borrowed it</span>
+                <div class="lang-badge">rust</div>
+              </div>
+              <div class="go-anchor"><span class="go-icon">🐹</span><span>Like passing <code>*string</code> in Go, except Go trusts you not to misuse it. Rust's compiler verifies it at compile time</span></div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Mutable References</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Add <code>mut</code> to allow the borrower to modify the value</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text"><strong>Golden rule:</strong> one mutable reference OR many immutable ones — never both</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Understand how this rule eliminates data races at compile time</span>
+              </div>
+              <div class="code-block">
+<span class="kw">let mut</span> s = <span class="type">String</span>::<span class="fn-name">from</span>(<span class="str">"hello"</span>);
+<span class="kw">let</span> r1 = &s; <span class="comment">// immutable borrow</span>
+<span class="kw">let</span> r2 = &s; <span class="comment">// another immutable borrow — fine</span>
+<span class="comment">// let r3 = &mut s; // 💥 can't mix mutable + immutable</span>
+<span class="kw">let</span> r3 = &<span class="kw">mut</span> s; <span class="comment">// ok after r1, r2 are no longer used</span>
+r3.<span class="fn-name">push_str</span>(<span class="str">" world"</span>);
+                <div class="lang-badge">rust</div>
+              </div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Borrow Checker Errors — Lean Into Them</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Deliberately write code that violates ownership rules</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Read every error message fully — Rust's errors are unusually helpful</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Trigger: use a variable after moving it</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Trigger: hold an immutable and mutable borrow at the same time</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Trigger: return a reference to a local variable</span>
+              </div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 clone() — When and Why to Avoid It</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text"><code>clone()</code> makes a deep copy — both variables are now independent owners</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">It always works, but it's often a crutch that hides a misunderstanding</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">If you're cloning to fix a borrow error, ask why first</span>
+              </div>
+              <div class="go-anchor"><span class="go-icon">💡</span><span>Rule of thumb: if you clone more than once or twice in a small program, you probably haven't understood ownership yet. Treat <code>clone()</code> as a code smell until you can explain why you need it.</span></div>
+            </div>
+
+            <div class="exit-checklist">
+              <div class="exit-checklist-title">✅ Phase A Exit Checklist</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Explain why <code>let s2 = s1</code> invalidates s1 for a String</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Know when to use <code>&T</code> vs <code>&mut T</code> vs just <code>T</code></span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Write a function that borrows a String and returns its length without cloning</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Read a borrow checker error and understand what it's telling you</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="block2">
+                <div class="checkbox">✓</div><span class="task-text">Explain the difference between <code>String</code> and <code>&str</code> to someone else</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+        </section>
+      </div>
+    </section>
+
+    <!-- PHASE B -->
+    <section id="phase-b">
+      <div class="phase" data-phase="b">
+        <div class="phase-header">
+          <div class="phase-badge go-badge">Phase B — Week 3</div>
+          <div class="phase-title">Write Real Rust</div>
+          <div class="phase-meta">Data Modeling + Error Handling<br>+ Collections + Structure</div>
+        </div>
+        <div class="go-anchor"><span class="go-icon">⚙️</span><span>By now the compiler is less of an enemy. Phase B is where Rust starts feeling good — and where your Go instincts pay off the most.</span></div>
+
+        <div class="block" id="block-phaseb-main">
+          <div class="block-header" onclick="toggleBlock('phaseb-main')">
+            <span class="block-icon">⚙️</span>
+            <span class="block-title">Phase B Tasks <span class="block-sub">Structs, Enums, Results, Iterators, Traits</span></span>
+            <div class="block-progress-bar">
+              <div class="bar-track"><div class="bar-fill" id="bar-phaseb-main" style="width:0%"></div></div>
+              <span class="bar-pct" id="pct-phaseb-main">0%</span>
+            </div>
+            <span class="block-chevron">▾</span>
+          </div>
+          <div class="block-body">
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Structs & Methods</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Define data with <code>struct</code> — identical concept to Go</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Add behavior with <code>impl</code> blocks — like Go methods on types</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text"><code>&self</code> = read-only method, <code>&mut self</code> = mutating method, <code>self</code> = consumes the value</span>
+              </div>
+              <div class="code-block">
+<span class="kw">struct</span> <span class="type">Server</span> <span class="punct">{</span>
+    host: <span class="type">String</span>,
+    port: <span class="type">u16</span>,
+<span class="punct">}</span>
+<span class="kw">impl</span> <span class="type">Server</span> <span class="punct">{</span>
+    <span class="kw">fn</span> <span class="fn-name">address</span>(&self) -> <span class="type">String</span> <span class="punct">{</span>
+        <span class="fn-name">format!</span>(<span class="str">"{}:{}"</span>, self.host, self.port)
+    <span class="punct">}</span>
+<span class="punct">}</span>
+                <div class="lang-badge">rust</div>
+              </div>
+              <div class="go-anchor"><span class="go-icon">🐹</span><span>Exactly like <code>func (s Server) Address() string</code> — just different syntax</span></div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Enums & Match</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Rust enum carries data per variant — far more powerful than Go's <code>iota</code></span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text"><code>match</code> is exhaustive — compiler forces you to handle every variant</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">No default escape hatch unless you use <code>_</code> explicitly</span>
+              </div>
+              <div class="code-block">
+<span class="kw">enum</span> <span class="type">Status</span> <span class="punct">{</span>
+    Running,
+    <span class="type">Failed</span>(<span class="type">String</span>),  <span class="comment">// carries a message</span>
+    <span class="type">Restarting</span>(<span class="type">u32</span>), <span class="comment">// carries retry count</span>
+<span class="punct">}</span>
+<span class="kw">match</span> status <span class="punct">{</span>
+    <span class="type">Status</span>::Running => <span class="fn-name">println!</span>(<span class="str">"ok"</span>),
+    <span class="type">Status</span>::<span class="fn-name">Failed</span>(msg) => <span class="fn-name">println!</span>(<span class="str">"error: {}"</span>, msg),
+    <span class="type">Status</span>::<span class="fn-name">Restarting</span>(n) => <span class="fn-name">println!</span>(<span class="str">"retry {}"</span>, n),
+<span class="punct">}</span>
+                <div class="lang-badge">rust</div>
+              </div>
+              <div class="go-anchor"><span class="go-icon">🐹</span><span>In Go you'd use a struct + constants + type assertions. Rust collapses all of that into one clean enum</span></div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Option&lt;T&gt; — Rust's Answer to nil</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">No null in Rust — absence is represented as <code>Option&lt;T&gt;</code></span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text"><code>Some(value)</code> = there's a value, <code>None</code> = there isn't</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Compiler forces you to handle both cases — no nil panics ever</span>
+              </div>
+              <div class="go-anchor"><span class="go-icon">🐹</span><span>Like returning <code>(value, bool)</code> in Go — but the compiler won't let you ignore the <code>None</code> case</span></div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Result&lt;T, E&gt; & The ? Operator</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text"><code>Result&lt;T, E&gt;</code> = <code>Ok(value)</code> or <code>Err(error)</code> — maps directly to Go's <code>(T, error)</code></span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">The <code>?</code> operator: if Err, return it early — if Ok, unwrap and continue</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">This replaces Go's <code>if err != nil { return err }</code> pattern</span>
+              </div>
+              <div class="code-block">
+<span class="kw">fn</span> <span class="fn-name">read_config</span>(path: &<span class="type">str</span>) -> <span class="type">Result</span>&lt;<span class="type">String</span>, std::io::<span class="type">Error</span>&gt; <span class="punct">{</span>
+    <span class="kw">let</span> content = std::fs::<span class="fn-name">read_to_string</span>(path)<span class="punct">?</span>; <span class="comment">// ? returns early on error</span>
+    <span class="type">Ok</span>(content)
+<span class="punct">}</span>
+                <div class="lang-badge">rust</div>
+              </div>
+              <div class="go-anchor"><span class="go-icon">🐹</span><span><code>?</code> is exactly <code>if err != nil { return nil, err }</code> — one character instead of three lines</span></div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Vec & HashMap</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text"><code>Vec&lt;T&gt;</code> = Go slice — dynamic, heap-allocated, ordered</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text"><code>HashMap&lt;K, V&gt;</code> = Go map — same concept, same usage</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Both follow ownership rules — pass by value or reference accordingly</span>
+              </div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Iterators — .map(), .filter(), .collect()</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Rust iterators are lazy — nothing runs until <code>.collect()</code> or similar</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Chains read like a pipeline — familiar if you've used functional style</span>
+              </div>
+              <div class="code-block">
+<span class="kw">let</span> ports: <span class="type">Vec</span>&lt;<span class="type">u16</span>&gt; = <span class="fn-name">vec!</span>[<span class="num">80</span>, <span class="num">443</span>, <span class="num">8080</span>, <span class="num">3000</span>];
+<span class="kw">let</span> high_ports: <span class="type">Vec</span>&lt;<span class="type">u16</span>&gt; = ports
+    .<span class="fn-name">iter</span>()
+    .<span class="fn-name">filter</span>(|&&p| p > <span class="num">1024</span>)
+    .<span class="fn-name">copied</span>()
+    .<span class="fn-name">collect</span>();
+                <div class="lang-badge">rust</div>
+              </div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Traits</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">A trait defines behavior a type must implement — like a Go interface</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Go: interface satisfaction is implicit. Rust: explicitly write <code>impl Trait for Type</code></span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Traits can have default implementations — more powerful than Go interfaces</span>
+              </div>
+              <div class="go-anchor"><span class="go-icon">🐹</span><span>Same idea as Go interfaces — just swap implicit for explicit</span></div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Lifetimes — Recognize the Syntax</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Lifetimes tell the compiler how long a reference is valid</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">You'll see <code>'a</code> annotations in function signatures with multiple references</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Don't go deep here — just don't panic when you see it</span>
+              </div>
+              <div class="code-block">
+<span class="comment">// just recognize this shape — don't memorize it yet</span>
+<span class="kw">fn</span> <span class="fn-name">longest</span>&lt;<span class="type">'a</span>&gt;(x: &<span class="type">'a str</span>, y: &<span class="type">'a str</span>) -> &<span class="type">'a str</span> <span class="punct">{</span>
+    <span class="kw">if</span> x.<span class="fn-name">len</span>() > y.<span class="fn-name">len</span>() <span class="punct">{</span> x <span class="punct">}</span> <span class="kw">else</span> <span class="punct">{</span> y <span class="punct">}</span>
+<span class="punct">}</span>
+                <div class="lang-badge">rust</div>
+              </div>
+            </div>
+
+            <div class="task-group">
+              <div class="task-group-label">🎯 Code Organization with mod</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text"><code>mod</code> = Go package — groups related code</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Split into multiple files naturally as your project grows</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text"><code>pub</code> = exported (like Go's capitalized names)</span>
+              </div>
+            </div>
+
+            <div class="exit-checklist">
+              <div class="exit-checklist-title">✅ Phase B Exit Checklist</div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Write a struct with methods using <code>impl</code> and <code>&self</code></span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Use <code>match</code> on an enum with data-carrying variants</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Return <code>Result&lt;T, E&gt;</code> from a function and use the <code>?</code> operator</span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Iterate over a <code>Vec</code> using <code>.iter().map().filter().collect()</code></span>
+              </div>
+              <div class="task-item" onclick="toggleTask(this)" data-block="phaseb-main">
+                <div class="checkbox">✓</div><span class="task-text">Define a trait and implement it for a struct</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- BUILD SOMETHING -->
+    <section id="project">
+      <div class="phase" data-phase="project">
+        <div class="phase-header">
+          <div class="phase-badge">Phase B Exit</div>
+          <div class="phase-title">Build Something</div>
+        </div>
+        <p style="font-size:12px;color:var(--text-mid);margin-bottom:16px;line-height:1.8">
+          After Phase B, don't move on to more reading. Pick a project closest to your real day-to-day work — building beats reading every time.
+        </p>
+        <div class="project-grid" id="project-grid">
+          <div class="project-card" onclick="selectProject(this)">
+            <div class="project-title">CLI Config Validator</div>
+            <div class="project-why">Reads a config file and validates it.<br>Uses Result, Option, file I/O, structs</div>
+          </div>
+          <div class="project-card" onclick="selectProject(this)">
+            <div class="project-title">In-Memory Key-Value Store</div>
+            <div class="project-why">Simple in-memory API.<br>Uses HashMap, traits, error handling</div>
+          </div>
+          <div class="project-card" onclick="selectProject(this)">
+            <div class="project-title">HTTP Client + JSON Parser</div>
+            <div class="project-why">Hits an endpoint, parses the response.<br>Uses Result, ?, real-world crates</div>
+          </div>
+        </div>
+        <p style="font-size:11px;color:var(--text-dim);margin-top:14px">💡 The closer the project is to your real day-to-day work, the faster ownership will click permanently.</p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span class="t-icon" id="toast-icon">🦀</span>
+  <span id="toast-msg">Nice work!</span>
+</div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────
+const STORAGE_KEY = 'rust-dive-progress-v1';
+
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+  catch { return {}; }
+}
+
+function saveState(state) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  catch {}
+}
+
+let state = loadState();
+
+// ─── BLOCK COUNTS ────────────────────────────────────
+const blockDefs = {
+  'block1': null,
+  'block2': null,
+  'phaseb-main': null
+};
+
+function countBlockTasks(blockId) {
+  return document.querySelectorAll(`.task-item[data-block="${blockId}"]`).length;
+}
+
+function getDoneCount(blockId) {
+  return Object.keys(state).filter(k => k.startsWith(blockId + ':') && state[k]).length;
+}
+
+// ─── RENDER STATE ────────────────────────────────────
+function renderAll() {
+  document.querySelectorAll('.task-item').forEach(el => {
+    const key = getKey(el);
+    if (state[key]) el.classList.add('checked');
+    else el.classList.remove('checked');
+  });
+
+  ['block1','block2','phaseb-main'].forEach(updateBlockBar);
+  updateOverall();
+  updateNavDots();
+}
+
+function getKey(el) {
+  const block = el.dataset.block;
+  const text = el.querySelector('.task-text').textContent.trim().slice(0,40);
+  return block + ':' + text;
+}
+
+// ─── TOGGLE TASK ────────────────────────────────────
+const milestones = [25, 50, 75, 100];
+const toastMessages = {
+  25:  ['25% done 🔥', 'Quarter way there!'],
+  50:  ['Halfway! ⚡', 'The hard part is behind you.'],
+  75:  ['75% complete 🚀', 'Nearly there!'],
+  100: ['100%! You\'re done 🦀', 'Ship something now!']
+};
+
+function toggleTask(el) {
+  const key = getKey(el);
+  state[key] = !state[key];
+  if (state[key]) el.classList.add('checked');
+  else el.classList.remove('checked');
+
+  saveState(state);
+  const blockId = el.dataset.block;
+  updateBlockBar(blockId);
+  const prev = lastMilestone;
+  updateOverall();
+  if (lastMilestone > prev) {
+    const msgs = toastMessages[lastMilestone];
+    showToast(msgs[0], msgs[1]);
+  }
+  updateNavDots();
+}
+
+let lastMilestone = 0;
+
+function updateOverall() {
+  const total = document.querySelectorAll('.task-item').length;
+  const done = document.querySelectorAll('.task-item.checked').length;
+  document.getElementById('total-tasks').textContent = total;
+  document.getElementById('done-tasks').textContent = done;
+
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const circ = 263.9;
+  const offset = circ - (circ * pct / 100);
+  document.getElementById('ring-circle').style.strokeDashoffset = offset;
+  document.getElementById('ring-text').textContent = pct + '%';
+
+  const reached = milestones.filter(m => pct >= m);
+  lastMilestone = reached.length > 0 ? reached[reached.length - 1] : 0;
+}
+
+function updateBlockBar(blockId) {
+  const total = document.querySelectorAll(`.task-item[data-block="${blockId}"]`).length;
+  const done = document.querySelectorAll(`.task-item.checked[data-block="${blockId}"]`).length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  const bar = document.getElementById('bar-' + blockId);
+  const label = document.getElementById('pct-' + blockId);
+  if (bar) bar.style.width = pct + '%';
+  if (label) label.textContent = pct + '%';
+}
+
+function updateNavDots() {
+  const navMap = {
+    'nav-phase-a': ['block1','block2'],
+    'nav-block1': ['block1'],
+    'nav-block2': ['block2'],
+    'nav-phase-b': ['phaseb-main'],
+  };
+  for (const [navId, blocks] of Object.entries(navMap)) {
+    const total = blocks.reduce((s,b) => s + document.querySelectorAll(`.task-item[data-block="${b}"]`).length, 0);
+    const done = blocks.reduce((s,b) => s + document.querySelectorAll(`.task-item.checked[data-block="${b}"]`).length, 0);
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    const el = document.getElementById(navId);
+    if (el) el.textContent = pct + '%';
+  }
+}
+
+// ─── BLOCK TOGGLE ────────────────────────────────────
+function toggleBlock(id) {
+  const el = document.getElementById('block-' + id);
+  el.classList.toggle('open');
+}
+
+// ─── PROJECT SELECT ────────────────────────────────────
+function selectProject(card) {
+  document.querySelectorAll('.project-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  showToast('Project selected 🔨', card.querySelector('.project-title').textContent);
+}
+
+// ─── TOAST ────────────────────────────────────────────
+let toastTimer;
+function showToast(title, sub) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').innerHTML = `<strong>${title}</strong><br><span style="font-size:10px;color:var(--text-dim)">${sub}</span>`;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ─── RESET ────────────────────────────────────────────
+function resetAll() {
+  if (!confirm('Reset all progress?')) return;
+  state = {};
+  saveState(state);
+  renderAll();
+}
+
+// ─── INTERSECTION OBSERVER FOR ANIMATIONS ────────────
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.05 });
+
+document.querySelectorAll('.phase').forEach(p => observer.observe(p));
+
+// ─── INIT ────────────────────────────────────────────
+renderAll();
+</script>
+</body>
+</html>
